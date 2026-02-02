@@ -517,21 +517,21 @@ if (isset($_GET['export']) && $_GET['export'] == '1') {
           <div class="col-4">
             <div class="box">
               <div class="label">≥ 4 hari</div>
-              <div class="num"><?= $jenisStats[$j]['ge4'] ?></div>
+              <div class="num"><?= $jenisStats[$j]['ge4'] ?> Lokasi</div>
             </div>
           </div>
 
           <div class="col-4">
             <div class="box warn">
               <div class="label">5–7 hari</div>
-              <div class="num"><?= $jenisStats[$j]['r5_7'] ?></div>
+              <div class="num"><?= $jenisStats[$j]['r5_7'] ?> Lokasi</div>
             </div>
           </div>
 
           <div class="col-4">
             <div class="box danger">
               <div class="label">≥ 8 hari</div>
-              <div class="num"><?= $jenisStats[$j]['ge8'] ?></div>
+              <div class="num"><?= $jenisStats[$j]['ge8'] ?> Lokasi</div>
             </div>
           </div>
         </div>
@@ -654,3 +654,4 @@ document.getElementById('globalSearch')?.addEventListener('input', applyFilters)
 
 </body>
 </html>
+

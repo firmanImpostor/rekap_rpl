@@ -53,7 +53,6 @@ if (empty($tids)) {
     die("tids.txt kosong.");
 }
 
-// ===============================
 // LOAD LOKASI MAP (TID -> LOKASI)
 // ===============================
 $tidLokasiMap = [];
@@ -78,6 +77,17 @@ if (file_exists($LOKASI_FILE)) {
 // ===============================
 // HELPERS
 // ===============================
+function parse_hari($val) {
+    if ($val === null) return null;
+    if (is_int($val) || is_float($val)) return (int)$val;
+
+    $s = trim((string)$val);
+    if ($s === '' || $s === '-') return null;
+
+    if (preg_match('/-?\d+/', $s, $m)) return (int)$m[0];
+    return null;
+}
+
 function normalize_rows($decoded) {
     if (isset($decoded['data']) && is_array($decoded['data'])) return $decoded['data'];
     if (is_array($decoded) && isset($decoded[0]) && is_array($decoded[0])) return $decoded;
@@ -165,6 +175,7 @@ function export_as_xlsx_if_possible($finalRows, $orderedCols) {
     $writer->save('php://output');
     exit;
 }
+
 
 function export_as_csv($finalRows, $orderedCols) {
     $filename = "rekap_rpl_" . date('Ymd_His') . ".csv";
@@ -317,6 +328,45 @@ usort($finalRows, function($a, $b){
 });
 
 // ===============================
+// DASHBOARD COUNTER (TARUH DI SINI)
+// ===============================
+$cnt_5_7   = 0;  // 5-7
+$cnt_gt7   = 0;  // >= 8
+$cnt_total = count($finalRows);
+
+foreach ($finalRows as $r) {
+    $hari = parse_hari($r['periode_opname_hari'] ?? null);
+    if ($hari === null) continue;
+
+    if ($hari >= 5 && $hari <= 7) $cnt_5_7++;
+    if ($hari >= 8) $cnt_gt7++;
+}
+
+
+// ===============================
+// DASHBOARD COUNTER PER JENIS (ATM/CRM)
+// ===============================
+$jenisStats = [
+  'CRM' => ['total'=>0, 'ge4'=>0, 'r5_7'=>0, 'ge8'=>0],
+  'ATM' => ['total'=>0, 'ge4'=>0, 'r5_7'=>0, 'ge8'=>0],
+  'LAIN' => ['total'=>0, 'ge4'=>0, 'r5_7'=>0, 'ge8'=>0],
+];
+
+foreach ($finalRows as $r) {
+    $jenis = strtoupper(trim((string)($r['jenis'] ?? 'LAIN')));
+    if ($jenis !== 'CRM' && $jenis !== 'ATM') $jenis = 'LAIN';
+
+    $jenisStats[$jenis]['total']++;
+
+    $hari = parse_hari($r['periode_opname_hari'] ?? null);
+    if ($hari === null) continue;
+
+    if ($hari >= 4) $jenisStats[$jenis]['ge4']++;
+    if ($hari >= 5 && $hari <= 7) $jenisStats[$jenis]['r5_7']++;
+    if ($hari >= 8) $jenisStats[$jenis]['ge8']++;
+}
+
+// ===============================
 // KOLOM + NO
 // ===============================
 $priority = ['No','tid','locate','jenis','tglRpl_terakhir','periode_opname_hari'];
@@ -339,6 +389,20 @@ foreach ($finalRows as &$r) {
 unset($r);
 
 // ===============================
+// STATISTIK: hitung setelah finalRows tersedia
+// ===============================
+$cnt_5_7  = 0;  // 5-7 hari
+$cnt_gt7  = 0;  // >=8 hari
+$cnt_total = count($finalRows);
+
+foreach ($finalRows as $r) {
+  $hari = hari_number($r['periode_opname_hari'] ?? '');
+  if ($hari === null) continue;
+  if ($hari >= 5 && $hari <= 7) $cnt_5_7++;
+  if ($hari >= 8) $cnt_gt7++;
+}
+
+// ===============================
 // EXPORT
 // ===============================
 if (isset($_GET['export']) && $_GET['export'] == '1') {
@@ -354,6 +418,32 @@ if (isset($_GET['export']) && $_GET['export'] == '1') {
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
   <style>
+    /* ===== MINI DASHBOARD ===== */
+.dash-mini .card {
+  padding: 6px 8px;
+}
+.dash-mini .title {
+  font-size: 12px;
+  font-weight: 600;
+}
+.dash-mini .num {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.dash-mini .label {
+  font-size: 11px;
+  color: #666;
+}
+.dash-mini .box {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 6px;
+  text-align: center;
+}
+.dash-mini .box.warn { border-color: #ffc107; }
+.dash-mini .box.danger { border-color: #dc3545; }
+
     /* ===== TABLE COMPACT STYLE (mirip contoh kamu) ===== */
     .table-wrap {
         max-height: 72vh;           /* jangan memanjang kebawah */
@@ -413,7 +503,45 @@ if (isset($_GET['export']) && $_GET['export'] == '1') {
   <?php endif; ?>
 
   <?php if (!empty($finalRows)): ?>
-    <div class="card p-3">
+  <div class="row g-2 mb-2 dash-mini">
+
+  <?php foreach (['CRM','ATM'] as $j): ?>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <div class="title"><?= $j ?></div>
+          <div class="label">Total: <?= $jenisStats[$j]['total'] ?></div>
+        </div>
+
+        <div class="row g-1">
+          <div class="col-4">
+            <div class="box">
+              <div class="label">≥ 4 hari</div>
+              <div class="num"><?= $jenisStats[$j]['ge4'] ?></div>
+            </div>
+          </div>
+
+          <div class="col-4">
+            <div class="box warn">
+              <div class="label">5–7 hari</div>
+              <div class="num"><?= $jenisStats[$j]['r5_7'] ?></div>
+            </div>
+          </div>
+
+          <div class="col-4">
+            <div class="box danger">
+              <div class="label">≥ 8 hari</div>
+              <div class="num"><?= $jenisStats[$j]['ge8'] ?></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  <?php endforeach; ?>
+
+</div>
+
 
       <!-- FILTERS + EXPORT -->
       <div class="d-flex flex-wrap gap-2 align-items-center mb-3">

@@ -451,6 +451,8 @@ if (isset($_GET['export']) && $_GET['export'] == '1') {
         border: 1px solid #ddd;
         border-radius: 8px;
         background: #fff;
+        .table-wrap { max-height: 68vh; }
+
     }
     table.rpl-table {
         font-size: 12px;
@@ -564,6 +566,26 @@ if (isset($_GET['export']) && $_GET['export'] == '1') {
 
         <a class="btn btn-success ms-auto" href="?export=1">⬇️ Download Excel</a>
       </div>
+<div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+  <div class="input-group input-group-sm" style="max-width:170px;">
+    <span class="input-group-text">Rows</span>
+    <select id="rowsPerPage" class="form-select">
+      <option value="25">25</option>
+      <option value="50" selected>50</option>
+      <option value="100">100</option>
+      <option value="200">200</option>
+    </select>
+  </div>
+
+  <div class="ms-auto d-flex gap-2 align-items-center">
+    <button id="prevPage" class="btn btn-outline-secondary btn-sm">Prev</button>
+    <span class="small text-muted">
+      Page <b id="pageNow">1</b> / <b id="pageTotal">1</b>
+      • Showing <b id="rowShown">0</b> / <b id="rowMatched">0</b>
+    </span>
+    <button id="nextPage" class="btn btn-outline-secondary btn-sm">Next</button>
+  </div>
+</div>
 
       <div class="table-wrap">
         <table id="rplTable" class="rpl-table table table-sm align-middle">
@@ -613,6 +635,8 @@ if (isset($_GET['export']) && $_GET['export'] == '1') {
 </div>
 
 <script>
+let currentPage = 1;
+
 function getHariNumber(text) {
   if (!text) return NaN;
   const m = String(text).match(/-?\d+/);
@@ -624,17 +648,22 @@ function colIndexByName(table, name) {
   return ths.findIndex(x => x === name);
 }
 
-function applyFilters() {
+function applyFiltersAndPagination(resetPage = false) {
   const table = document.getElementById("rplTable");
   if (!table) return;
 
   const idxDurasi = colIndexByName(table, "periode_opname_hari");
 
-  const minHari = document.getElementById('durasiFilter').value;
-  const q = document.getElementById('globalSearch').value.trim().toLowerCase();
+  const minHari = document.getElementById('durasiFilter')?.value || '';
+  const q = (document.getElementById('globalSearch')?.value || '').trim().toLowerCase();
 
-  const rows = document.querySelectorAll('#rplTable tbody tr');
-  rows.forEach(tr => {
+  const rowsPerPage = parseInt(document.getElementById('rowsPerPage')?.value || '50', 10);
+
+  const allRows = Array.from(document.querySelectorAll('#rplTable tbody tr'));
+
+  // 1) Tentukan rows yang MATCH filter
+  const matched = [];
+  allRows.forEach(tr => {
     const tds = Array.from(tr.querySelectorAll('td'));
     const allText = tds.map(td => td.innerText.toLowerCase()).join(' ');
 
@@ -644,14 +673,52 @@ function applyFilters() {
     const okDurasi = !minHari || (!Number.isNaN(hari) && hari >= parseInt(minHari, 10));
     const okSearch = !q || allText.includes(q);
 
-    tr.style.display = (okDurasi && okSearch) ? '' : 'none';
+    if (okDurasi && okSearch) matched.push(tr);
   });
+
+  // reset page jika filter berubah
+  if (resetPage) currentPage = 1;
+
+  // 2) Hitung total page
+  const totalPages = Math.max(1, Math.ceil(matched.length / rowsPerPage));
+  if (currentPage > totalPages) currentPage = totalPages;
+
+  // 3) Hide semua dulu
+  allRows.forEach(tr => tr.style.display = 'none');
+
+  // 4) Tampilkan hanya row di halaman aktif
+  const start = (currentPage - 1) * rowsPerPage;
+  const end = start + rowsPerPage;
+  const slice = matched.slice(start, end);
+  slice.forEach(tr => tr.style.display = '');
+
+  // 5) Update UI pagination
+  document.getElementById('pageNow').innerText = String(currentPage);
+  document.getElementById('pageTotal').innerText = String(totalPages);
+  document.getElementById('rowMatched').innerText = String(matched.length);
+  document.getElementById('rowShown').innerText = String(slice.length);
+
+  document.getElementById('prevPage').disabled = (currentPage <= 1);
+  document.getElementById('nextPage').disabled = (currentPage >= totalPages);
 }
 
-document.getElementById('durasiFilter')?.addEventListener('change', applyFilters);
-document.getElementById('globalSearch')?.addEventListener('input', applyFilters);
+// events
+document.getElementById('durasiFilter')?.addEventListener('change', () => applyFiltersAndPagination(true));
+document.getElementById('globalSearch')?.addEventListener('input', () => applyFiltersAndPagination(true));
+document.getElementById('rowsPerPage')?.addEventListener('change', () => applyFiltersAndPagination(true));
+
+document.getElementById('prevPage')?.addEventListener('click', () => {
+  currentPage = Math.max(1, currentPage - 1);
+  applyFiltersAndPagination(false);
+});
+document.getElementById('nextPage')?.addEventListener('click', () => {
+  currentPage = currentPage + 1;
+  applyFiltersAndPagination(false);
+});
+
+// initial
+applyFiltersAndPagination(true);
 </script>
 
 </body>
 </html>
-

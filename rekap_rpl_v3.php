@@ -1,4 +1,7 @@
 <?php
+set_time_limit(180);
+ini_set('max_execution_time', '180');
+
 /**
  * rekap_rpl_v3.php
  * ============================================================
@@ -32,7 +35,7 @@ date_default_timezone_set('Asia/Jakarta');
 $API_URL        = "http://203.153.103.122:89/cro_terpusat/api/get_rpl_tid.php";
 $PERIODE_AWAL   = "2000-01-01";
 $PERIODE_AKHIR  = date('Y-m-d');
-$CONCURRENCY    = 15;
+$CONCURRENCY    = 5;
 
 $TIDS_FILE      = __DIR__ . "/tids.txt";
 $LOKASI_FILE    = __DIR__ . "/tids_lokasi.txt";
@@ -327,20 +330,6 @@ usort($finalRows, function($a, $b){
     return $get($b['periode_opname_hari'] ?? '') <=> $get($a['periode_opname_hari'] ?? '');
 });
 
-// ===============================
-// DASHBOARD COUNTER (TARUH DI SINI)
-// ===============================
-$cnt_5_7   = 0;  // 5-7
-$cnt_gt7   = 0;  // >= 8
-$cnt_total = count($finalRows);
-
-foreach ($finalRows as $r) {
-    $hari = parse_hari($r['periode_opname_hari'] ?? null);
-    if ($hari === null) continue;
-
-    if ($hari >= 5 && $hari <= 7) $cnt_5_7++;
-    if ($hari >= 8) $cnt_gt7++;
-}
 
 
 // ===============================
@@ -414,7 +403,7 @@ if (isset($_GET['export']) && $_GET['export'] == '1') {
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Rekap RPL KC Medan (ATM/CRM)</title>
+  <title>Rekap RPL Terakhir (Semua TID)</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
   <style>
@@ -445,15 +434,14 @@ if (isset($_GET['export']) && $_GET['export'] == '1') {
 .dash-mini .box.danger { border-color: #dc3545; }
 
     /* ===== TABLE COMPACT STYLE (mirip contoh kamu) ===== */
-    .table-wrap {
-        max-height: 72vh;           /* jangan memanjang kebawah */
-        overflow: auto;             /* scroll vertikal & horizontal */
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        background: #fff;
-        .table-wrap { max-height: 68vh; }
+  .table-wrap {
+  max-height: 68vh;
+  overflow: auto;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+}
 
-    }
     table.rpl-table {
         font-size: 12px;
         white-space: nowrap;        /* jangan turun baris */
@@ -519,21 +507,21 @@ if (isset($_GET['export']) && $_GET['export'] == '1') {
           <div class="col-4">
             <div class="box">
               <div class="label">≥ 4 hari</div>
-              <div class="num"><?= $jenisStats[$j]['ge4'] ?> Lokasi</div>
+              <div class="num"><?= $jenisStats[$j]['ge4'] ?> TID</div>
             </div>
           </div>
 
           <div class="col-4">
             <div class="box warn">
               <div class="label">5–7 hari</div>
-              <div class="num"><?= $jenisStats[$j]['r5_7'] ?> Lokasi</div>
+              <div class="num"><?= $jenisStats[$j]['r5_7'] ?> TID</div>
             </div>
           </div>
 
           <div class="col-4">
             <div class="box danger">
               <div class="label">≥ 8 hari</div>
-              <div class="num"><?= $jenisStats[$j]['ge8'] ?> Lokasi</div>
+              <div class="num"><?= $jenisStats[$j]['ge8'] ?> TID</div>
             </div>
           </div>
         </div>
@@ -722,4 +710,3 @@ applyFiltersAndPagination(true);
 
 </body>
 </html>
-
